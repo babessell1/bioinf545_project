@@ -8,7 +8,7 @@
 #SBATCH --time=5:00:00
 #SBATCH --account=bioinf545w23_class
 #SBATCH --partition=standard
-#SBATCH --output=../logs/build_sheep.log    
+#SBATCH --output=../logs/align_sheep.log    
        
 module load Bioinformatics
 module load star/2.7.6a-aekjdpr
@@ -27,10 +27,10 @@ while read srr; do
         --alignIntronMax 1000000 \
         --alignMatesGapMax 1000000 \
         --readFilesIn \
-            "../data/untrimmed_reads/${srr}_pass_1.fastq.gz" \
-            "../data/untrimmed_reads/${srr}_pass_2.fastq.gz" \
+            "../data/trimmed_reads/${srr}_pass_1_val_1.fq.gz" \
+            "../data/trimmed_reads/${srr}_pass_2_val_2.fq.gz" \
         --genomeDir ../data/genomes/sheep_star/ \
-        --outFileNamePrefix "../data/genomes/sheep_star/${srr}_" \
+        --outFileNamePrefix "../data/star_out/${srr}_" \
         --outSAMtype BAM SortedByCoordinate \
         --quantMode GeneCounts
 done <../data/srr.txt

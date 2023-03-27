@@ -8,7 +8,7 @@
 #SBATCH --time=5:00:00
 #SBATCH --account=bioinf545w23_class
 #SBATCH --partition=standard
-#SBATCH --output=../logs/build_sheep.log    
+#SBATCH --output=../logs/build_sheep.log   
        
 module load Bioinformatics
 module load star/2.7.6a-aekjdpr

@@ -8,7 +8,7 @@
 #SBATCH --time=5:00:00
 #SBATCH --account=bioinf545w23_class
 #SBATCH --partition=standard
-#SBATCH --output=logs/download.log
+#SBATCH --output=../logs/download.log
 
 module load Bioinformatics
 module load sratoolkit/2.10.9-udmejx7
@@ -48,13 +48,13 @@ gzip ./*.gff
 # get rnaseq
 while read srr; do
     fastq-dump \
-    --gzip \
-    --readids \
-    --read-filter pass \
-    --dumpbase \
-    --split-files \
-    --clip \
-    --outdir ../data/untrimmed_reads \
-    $srr
+        --gzip \
+        --readids \
+        --read-filter pass \
+        --dumpbase \
+        --split-files \
+        --clip \
+        --outdir ../data/untrimmed_reads \
+        $srr
 done <../data/srr.txt
 

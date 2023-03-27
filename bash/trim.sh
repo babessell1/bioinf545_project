@@ -18,10 +18,10 @@ mkdir -p ../data/trimmed_reads
 
 while read srr; do
     trim_galore \
-    --paired \
-    --gzip \
-    --fastqc \
-    --output_dir ../data/trimmed_reads/ \
-    "../data/untrimmed_reads/${srr}_pass_1.fastq.gz" \
-    "../data/untrimmed_reads/${srr}_pass_2.fastq.gz"
-done <../data/srr.txt
+        --paired \
+        --gzip \
+        --fastqc \
+        --output_dir ../data/trimmed_reads/ \
+        "../data/untrimmed_reads/${srr}_pass_1.fastq.gz" \
+        "../data/untrimmed_reads/${srr}_pass_2.fastq.gz"
+done <../data/srr_rerun.txt
