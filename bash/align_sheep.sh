@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=build_sheep
+#SBATCH --job-name=align_sheep
 #SBATCH --cpus-per-task=4
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -20,12 +20,13 @@ while read srr; do
         --runThreadN 4 \
         --readFilesCommand "gunzip" \
         -c \
-        --outFilterMultimapNmax 20 \
-        --alignSJoverhangMin 8 \
+        --outFilterMultimapNmax 10 \
+        --alignSJoverhangMin 5 \
         --alignSJDBoverhangMin 1 \
         --alignIntronMin 20 \
         --alignIntronMax 1000000 \
         --alignMatesGapMax 1000000 \
+        --sjdbGTFfile ../data/genomes/sheep.gtf \
         --readFilesIn \
             "../data/trimmed_reads/${srr}_pass_1_val_1.fq.gz" \
             "../data/trimmed_reads/${srr}_pass_2_val_2.fq.gz" \

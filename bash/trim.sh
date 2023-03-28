@@ -24,4 +24,4 @@ while read srr; do
         --output_dir ../data/trimmed_reads/ \
         "../data/untrimmed_reads/${srr}_pass_1.fastq.gz" \
         "../data/untrimmed_reads/${srr}_pass_2.fastq.gz"
-done <../data/srr_rerun.txt
+done <../data/srr.txt

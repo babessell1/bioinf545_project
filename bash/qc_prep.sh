@@ -20,34 +20,16 @@ mkdir -p ../data/sorted_sheep_align
 
 while read srr; do
     # convert fq to sam
-    picard-tools FastqToSam \
-        F1="../data/untrimmed_reads/${srr}_pass_1.fastq.gz" \
-        O="../data/read_bam/${srr}_sorted_reads_1.bam" \
-        SM="${srr}"
+    #picard-tools FastqToSam \
+    #    F1="../data/untrimmed_reads/${srr}_pass_1.fastq.gz" \
+    #    O="../data/read_bam/${srr}_sorted_reads_1.bam" \
+    #    SM="${srr}"
 
     # convert fq to sam
-    picard-tools FastqToSam \
-        F1="../data/untrimmed_reads/${srr}_pass_2.fastq.gz" \
-        O="../data/read_bam/${srr}_sorted_reads_2.bam" \
-        SM="${srr}"
-
-    # use picard to estimate library complexity from sorted bams (from fq)
-    picard-tools EstimateLibraryComplexity \
-        I="../data/read_bam/${srr}_sorted_reads_1.bam" \
-        O="../reports/complexity/${srr}_1_complexity.txt"
-
-    # use picard to estimate library complexity from sorted bams (from fq)
-    picard-tools EstimateLibraryComplexity \
-        I="../data/read_bam/${srr}_sorted_reads_2.bam" \
-        O="../reports/complexity/${srr}_2_complexity.txt"
-
-    # sort alignment bam files for qorts
-    samtools sort \ 
-        "../data/genomes/sheep_star/${srr}_Aligned.sortedByCoord.out.bam" \
-        -o "../data/sorted_sheep_align/${srr}_aligned.bam"
-
-    # run qorts
-    mkdir -p "../reports/qorts_sheep/${srr}"
+    #picard-tools FastqToSam \
+    #    F1="../data/untrimmed_reads/${srr}_pass_2.fastq.gz" \
+    #    O="../data/read_bam/${srr}_sorted_reads_2.bam" \
+    #    SM="${srr}"
 done <../data/srr.txt
 
 
