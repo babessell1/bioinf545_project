@@ -13,7 +13,7 @@
 module load Bioinformatics
 module load star/2.7.6a-aekjdpr
 
-mkdir -p ../data/star_output
+mkdir -p ../data/star_sheep
 
 while read srr; do
     STAR \
@@ -30,7 +30,7 @@ while read srr; do
             "../data/trimmed_reads/${srr}_pass_1_val_1.fq.gz" \
             "../data/trimmed_reads/${srr}_pass_2_val_2.fq.gz" \
         --genomeDir ../data/genomes/sheep_star/ \
-        --outFileNamePrefix "../data/star_out/${srr}_" \
+        --outFileNamePrefix "../data/star_sheep/${srr}_" \
         --outSAMtype BAM SortedByCoordinate \
         --quantMode GeneCounts
 done <../data/srr.txt
