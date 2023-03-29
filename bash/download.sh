@@ -45,7 +45,7 @@ rm ./*.md
 gzip ./*.fna
 gzip ./*.gff
 
-# get rnaseq
+# get each srr code associated fastq
 while read srr; do
     fastq-dump \
         --gzip \

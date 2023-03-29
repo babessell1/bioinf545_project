@@ -13,12 +13,15 @@
 module load Bioinformatics
 module load star/2.7.6a-aekjdpr
 
+# convert gff to gtf if not already done
 if [ ! -f ../data/genomes/sheep.gtf ]; then
     ../software/gffread-0.12.7.Linux_x86_64/gffread \
         -T ../data/genomes/sheep.gff \
         -o ../data/genomes/sheep.gtf
+    grep 'gene_id' ../data/genomes/sheep.gtf > ../data/genomes/sheep_qortsfix.gtf
 fi
 
+# index genome
 STAR --runMode genomeGenerate \
     --runThreadN 4 \
     --genomeDir ../data/genomes/sheep_star/ \

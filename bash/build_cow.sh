@@ -18,8 +18,10 @@ if [ ! -f ../data/genomes/cow.gtf ]; then
     ../software/gffread-0.12.7.Linux_x86_64/gffread \
         -T ../data/genomes/cow.gff \
         -o ../data/genomes/cow.gtf
+    grep 'gene_id' ../data/genomes/cow.gtf > ../data/genomes/cow_qortsfix.gtf
 fi
 
+# index genome
 STAR --runMode genomeGenerate \
     --runThreadN 4 \
     --genomeDir ../data/genomes/cow_star/ \

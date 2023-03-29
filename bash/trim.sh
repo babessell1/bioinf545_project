@@ -16,6 +16,7 @@ module load trimgalore/0.6.7-ztb2tpz
 
 mkdir -p ../data/trimmed_reads
 
+# for each srr, trim sample
 while read srr; do
     trim_galore \
         --paired \
