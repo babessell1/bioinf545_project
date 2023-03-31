@@ -1,0 +1,132 @@
+---
+title: "DE_analysis_BIOINF545"
+output: html_document
+date: "2023-03-30"
+---
+
+
+```{r}
+library(DESeq2)
+library(ggplot2)
+library(tidyverse)
+```
+
+
+```{r}
+### path to the directory where HTSeq files are stored:
+directory <- "C:/Users/katrinp/Documents/0 PIBS year/BIOINF545/Final project 545/sheep_gene_cnt"
+# to look at HTSeq files for reads aligned to cow reference genome use this path; "C:/Users/katrinp/Documents/0 PIBS year/BIOINF545/Final project 545/cow_gene_cnt"
+```
+
+```{r}
+sampleFiles <- list.files(directory,pattern="_gene_cnt.htseq.out") #this pattern is for files with duplicate reads. To look at files without duplicates use _gene_cnt_rmdup.htseq.out instead
+sampleID <- c(rep(c("NN","NC","CN","CC"),each=3))
+sampleTable <- data.frame(sampleName=gsub(".htseq.out","",sampleFiles),fileName=sampleFiles,ID=sampleID)
+sampleTable
+```
+
+
+```{r}
+### read the count data
+ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable=sampleTable,directory=directory,design=~ID)
+
+### remove genes with on average < 1 read per sample
+ddsHTSeq <- ddsHTSeq[rowSums(counts(ddsHTSeq))>=dim(ddsHTSeq)[2],]
+
+### reordering level of condition so that we can compare all genotypes with the callipyge one  
+ddsHTSeq$ID <- factor(ddsHTSeq$ID,levels=c("NC","CN", "NN", "CC"))
+ddsHTSeq$ID
+```
+
+
+```{r}
+### size factor estimation, dispersion estimation
+ddsHTSeq <- DESeq(ddsHTSeq)
+colData(ddsHTSeq)
+```
+
+
+```{r}
+#making PCA plot
+rld <- rlog(ddsHTSeq, blind=FALSE)
+plotPCA(rld, intgroup=c("ID"))
+```
+
+```{r}
+#comparing each of the 3 genotypes with callipyge one
+normal_genotypes <- c("CN", "NN", "CC")
+for (i in normal_genotypes) {
+  print(i)
+  res <- results(ddsHTSeq, contrast = c("ID", "NC", i),pAdjustMethod="fdr", cooksCutoff=FALSE)
+  res$sig <- ifelse((res$pvalue <=0.1 & res$log2FoldChange > 1) | (res$pvalue <=0.1 & res$log2FoldChange < -1), 'sig', 'ns')
+  assign(paste0(i, '_vs_NC'), data.frame(res))
+  assign(paste0(i, '_vs_NC_pval_hist'), hist(res[,5], xlab = "p-values", main = paste0(i, ' vs NC histogram of p-values')))
+}
+```
+
+```{r}
+#making volcano plots for genotype comparisons
+list1 <- list(CN_vs_NC, NN_vs_NC, CC_vs_NC)
+
+for (i in 1:length(list1)) {
+  assign(paste0(normal_genotypes[i], '_vs_NC_volcano_plot'), ggplot(data=list1[[i]], aes(x=log2FoldChange, y=-log10(pvalue), col=sig)) +
+                                                                 geom_point() + 
+                                                                 labs(title = paste0(normal_genotypes[i], ' vs NC volcano plot'), x = "log2(fold change)")+
+                                                                 theme(plot.title = element_text(hjust = 0.5))+
+                                                                 scale_colour_discrete(name="Significance in \ndifferential expression",
+                                                                                     breaks=c("ns", "sig"),
+                                                                                     labels=c("Non-significant", "Significant"))+
+                                                                 xlim(-20, 20)+
+                                                                 ylim(0,12))
+}
+```
+
+```{r}
+CC_vs_NC_volcano_plot
+CN_vs_NC_volcano_plot
+NN_vs_NC_volcano_plot
+```
+
+```{r}
+#code for this function which creates qq-plot based on provided p-values is found on this website https://slowkow.com/notes/ggplot2-qqplot/
+
+gg_qqplot <- function(ps, ci = 0.95) {
+  n  <- length(ps)
+  df <- data.frame(
+    observed = -log10(sort(ps)),
+    expected = -log10(ppoints(n)),
+    clower   = -log10(qbeta(p = (1 - ci) / 2, shape1 = 1:n, shape2 = n:1)),
+    cupper   = -log10(qbeta(p = (1 + ci) / 2, shape1 = 1:n, shape2 = n:1))
+  )
+  log10Pe <- expression(paste("Expected -log"[10], plain(P)))
+  log10Po <- expression(paste("Observed -log"[10], plain(P)))
+  ggplot(df) +
+    geom_ribbon(
+      mapping = aes(x = expected, ymin = clower, ymax = cupper),
+      alpha = 0.1
+    ) +
+    geom_point(aes(expected, observed), shape = 1, size = 2) +
+    geom_abline(intercept = 0, slope = 1, alpha = 0.5) +
+    # geom_line(aes(expected, cupper), linetype = 2, size = 0.5) +
+    # geom_line(aes(expected, clower), linetype = 2, size = 0.5) +
+    xlab(log10Pe) +
+    ylab(log10Po)
+}
+
+```
+
+```{r}
+#making volcano plots for genotype comparisons
+list1 <- list(CN_vs_NC, NN_vs_NC, CC_vs_NC)
+
+for (i in 1:length(list1)) {
+ assign(paste0(normal_genotypes[i], '_vs_NC_QQ_plot'), gg_qqplot(list1[[i]]$pvalue) + labs(title = paste0(normal_genotypes[i], ' vs NC QQ-plot'))+
+                              theme(plot.title = element_text(hjust = 0.5)))
+}
+```
+
+```{r}
+CC_vs_NC_QQ_plot
+CN_vs_NC_QQ_plot
+NN_vs_NC_QQ_plot
+```

@@ -1,0 +1,147 @@
+---
+title: "Cow/Sheep - DGE"
+author: "Brandt Bessell"
+date: "2023-03-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(DESeq2)
+```
+
+```{r}
+setwd("C:/Users/bbessell/OneDrive - Michigan Medicine/Documents/Courses/BIOINF545/project/DGE")
+srr <- c("SRR1013842",
+         "SRR1013845",
+         "SRR1013850",
+         "SRR1013855",
+         "SRR1013857",
+         "SRR1013871",
+         "SRR1013874",
+         "SRR1013877",
+         "SRR1013879",
+         "SRR1013888",
+         "SRR1013898",
+         "SRR1013904")
+
+geno <- c(rep("NN",3), rep("NC",3), rep("CN",3), rep("CC",3))
+pheno <- c(rep("control", 3), rep("hyper", 3), rep("control",6))
+samp_id <- c("NN_1",
+             "NN_2",
+             "NN_3",
+             "NC_1",
+             "NC_2",
+             "NC_3",
+             "CN_1",
+             "CN_2",
+             "CN_3",
+             "CC_1",
+             "CC_2",
+             "CC_3")
+
+
+all_files = list.files(path="./counts", full.names=T)
+cnt_files <- all_files[grep("^((?!_rmdup).)*$", all_files, perl=T)]
+cnt_files_rmdup <- all_files[grep("rmdup", all_files)]
+
+use_files <- cnt_files
+
+for (i in 1:length(srr)){
+  for (j in 1:length(use_files)){
+    if (grepl(srr[i], use_files[j])){
+      if (i==1){
+        cnt_df <- as.data.frame(read.table(use_files[j], header=F, sep="\t"))
+        colnames(cnt_df)=c("gene", samp_id[i])
+      } else{
+        new_df <- as.data.frame(read.table(use_files[j],header=F, sep="\t"),col.names=c("gene",samp_id[i]))
+        colnames(new_df)=c("gene", samp_id[i])
+        cnt_df <- merge(cnt_df, new_df, by="gene", sort=F)
+      }
+    }
+  }
+}
+cnt_df <- cnt_df[-grep("^_", cnt_df$gene),]
+row.names(cnt_df) <- cnt_df$gene
+cnt_df[,"gene"] <- NULL
+count_matrix <- as.matrix(cnt_df)
+```
+
+```{r}
+coldata <- data.frame(
+  sample = samp_id,
+  condition = geno,
+  row.names= "sample"
+)
+```
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData=count_matrix, colData=coldata, design = ~ condition)
+dds <- dds[rowSums(counts(dds))>=6]
+dds$condition <- relevel(dds$condition, ref="CN")
+dds <- DESeq(dds)
+```
+```{r}
+res <- results(dds)
+summary(results(dds, alpha=0.1))
+```
+
+```{r}
+rld <- rlog(dds, blind=FALSE)
+plotPCA(rld, intgroup=c("condition"))
+```
+
+
+```{r}
+library(limma)
+library(edgeR)
+```
+
+```{r}
+count_matrix <- count_matrix[rowSums(count_matrix)>=12,]
+dlist <- DGEList(counts=count_matrix, 
+                 genes=row.names(count_matrix),
+                 group=coldata$condition
+                 )
+dlist$samples$group <- relevel(dlist$samples$group, ref="CN")
+dlist <- calcNormFactors(dlist, method="TMM")
+```
+
+```{r}
+plotMDS(dlist)
+```
+
+```{r}
+design_mat <- model.matrix(~0+group, data=dlist$samples)
+print(design_mat)
+
+dlist <- estimateGLMCommonDisp(dlist, design=design_mat)
+dlist <- estimateGLMTrendedDisp(dlist, design=design_mat)
+dlist <- estimateGLMTagwiseDisp(dlist, design=design_mat)
+```
+
+```{r}
+fit <- glmQLFit(dlist, design_mat)
+gp <- levels(dlist$samples$group)
+glen <- length(gp)
+print(gp)
+for (i in 2:glen) {
+  test <- gp[i]
+  con <- rep(0, glen)
+  con[1] <- -1
+  con[i] <- 1
+  print(con)
+  qlf <- glmQLFTest(fit, contrast=con)
+  edgeR_result <- topTags(qlf, n=65000)
+  deGenes <- decideTestsDGE(qlf, adjust.method="BH", p.value=0.05)
+  deGenes <- rownames(qlf)[as.logical(deGenes)]
+  expTab <- edgeR_result$table
+  hist(expTab$PValue)
+  write.csv(expTab,file=paste0("./results/degenes_CNvs", test, ".csv"))
+}
+```
+
+
