@@ -35,7 +35,7 @@ htseq-count \
     -i=gene_name \
     "../data/star_${2}/${2}_${1}_Aligned.sortedByCoord.out.bam" \
     "../data/genomes/${2}_qortsfix.gtf" \
-    > "../data/${2}_gene_cnt/${2}_${1}_gene_cnt.htseq.out"
+> "../data/${2}_gene_cnt/${2}_${1}_gene_cnt.htseq.out"
 
 # mark and remove duplicates in star outputted bam file
 mkdir -p "../reports/${2}_dups/"
@@ -60,5 +60,5 @@ htseq-count \
     -i=gene_name \
     "../data/${2}_aligned_rmdups/${2}_${1}_aligned_rmdup.bam" \
     "../data/genomes/${2}_qortsfix.gtf" \
-    > "../data/${2}_gene_cnt/${2}_${1}_gene_cnt_rmdup.htseq.out"
+> "../data/${2}_gene_cnt/${2}_${1}_gene_cnt_rmdup.htseq.out"
 EOF

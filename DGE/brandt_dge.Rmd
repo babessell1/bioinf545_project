@@ -14,7 +14,10 @@ library(DESeq2)
 ```
 
 ```{r}
+# hardcoded, have to changed this to your own
 setwd("C:/Users/bbessell/OneDrive - Michigan Medicine/Documents/Courses/BIOINF545/project/DGE")
+
+# vector of srr codes
 srr <- c("SRR1013842",
          "SRR1013845",
          "SRR1013850",
@@ -28,6 +31,7 @@ srr <- c("SRR1013842",
          "SRR1013898",
          "SRR1013904")
 
+# genotypes, phenotypes, sample identifiers
 geno <- c(rep("NN",3), rep("NC",3), rep("CN",3), rep("CC",3))
 pheno <- c(rep("control", 3), rep("hyper", 3), rep("control",6))
 samp_id <- c("NN_1",
@@ -43,13 +47,16 @@ samp_id <- c("NN_1",
              "CC_2",
              "CC_3")
 
-
+# get all files, get subsets, ones with dupes removed, ones without
 all_files = list.files(path="./counts", full.names=T)
-cnt_files <- all_files[grep("^((?!_rmdup).)*$", all_files, perl=T)]
-cnt_files_rmdup <- all_files[grep("rmdup", all_files)]
+cnt_files <- all_files[grep("^((?!_rmdup).)*$", all_files, perl=T)] # regex searches NOT contains '_rmdup'
+cnt_files_rmdup <- all_files[grep("rmdup", all_files)] # vice versa
 
-use_files <- cnt_files
+use_files <- cnt_files # change this variable to change dupe use ^
 
+# build count matrix
+# could use the file reader for DESeq2, but Kate did that and I figured I'd do this way. 
+# EdgeR might have a similar function as DESeq2 file reader
 for (i in 1:length(srr)){
   for (j in 1:length(use_files)){
     if (grepl(srr[i], use_files[j])){
@@ -57,77 +64,86 @@ for (i in 1:length(srr)){
         cnt_df <- as.data.frame(read.table(use_files[j], header=F, sep="\t"))
         colnames(cnt_df)=c("gene", samp_id[i])
       } else{
-        new_df <- as.data.frame(read.table(use_files[j],header=F, sep="\t"),col.names=c("gene",samp_id[i]))
+        new_df <- as.data.frame(read.table(use_files[j],header=F, sep="\t"), col.names=c("gene",samp_id[i]))
         colnames(new_df)=c("gene", samp_id[i])
         cnt_df <- merge(cnt_df, new_df, by="gene", sort=F)
       }
     }
   }
 }
-cnt_df <- cnt_df[-grep("^_", cnt_df$gene),]
-row.names(cnt_df) <- cnt_df$gene
-cnt_df[,"gene"] <- NULL
-count_matrix <- as.matrix(cnt_df)
+cnt_df <- cnt_df[-grep("^_", cnt_df$gene),]  # drop qc rows
+row.names(cnt_df) <- cnt_df$gene  # set rownames to genes
+cnt_df[,"gene"] <- NULL  # remove gene column
+count_matrix <- as.matrix(cnt_df)  # convert to matrix
 ```
-
 ```{r}
+# make "dictionary" of sample info
+# can set 'geno' to 'pheno' to compare against all non polar overdominant as one group
 coldata <- data.frame(
   sample = samp_id,
-  condition = geno,
+  condition = geno, 
   row.names= "sample"
 )
 ```
-
 ```{r}
+# build DESeq2 object
 dds <- DESeqDataSetFromMatrix(countData=count_matrix, colData=coldata, design = ~ condition)
-dds <- dds[rowSums(counts(dds))>=6]
-dds$condition <- relevel(dds$condition, ref="CN")
+dds <- dds[rowSums(counts(dds))>=12]  # 12 = dim 6? bc pairwise
+
+# set hypertrophy gt as the first level, run deseq
+# * note, CN vs NC is ambiguous
+dds$condition <- relevel(dds$condition, ref="CN") 
 dds <- DESeq(dds)
 ```
 ```{r}
+# alpha = fdr cutoff
 res <- results(dds)
-summary(results(dds, alpha=0.1))
+summary(results(dds, alpha=0.05))
 ```
-
 ```{r}
+# pca, kate has better plotting stuff in her script
 rld <- rlog(dds, blind=FALSE)
 plotPCA(rld, intgroup=c("condition"))
 ```
-
-
 ```{r}
+# try edgeR
 library(limma)
 library(edgeR)
 ```
-
 ```{r}
+# filter count matrix to row counts >= number of dimensions
 count_matrix <- count_matrix[rowSums(count_matrix)>=12,]
+
+# construct edgeR object, group/condition is genotype
 dlist <- DGEList(counts=count_matrix, 
                  genes=row.names(count_matrix),
                  group=coldata$condition
                  )
+
 dlist$samples$group <- relevel(dlist$samples$group, ref="CN")
-dlist <- calcNormFactors(dlist, method="TMM")
+dlist <- calcNormFactors(dlist, method="TMM")  # normalize
+plotMDS(dlist)  # cluster
 ```
-
 ```{r}
-plotMDS(dlist)
-```
-
-```{r}
+# test groups against eachother
 design_mat <- model.matrix(~0+group, data=dlist$samples)
 print(design_mat)
 
+# *** Don't really know what this does tbh
 dlist <- estimateGLMCommonDisp(dlist, design=design_mat)
 dlist <- estimateGLMTrendedDisp(dlist, design=design_mat)
 dlist <- estimateGLMTagwiseDisp(dlist, design=design_mat)
 ```
-
 ```{r}
+# fit that neg binom
 fit <- glmQLFit(dlist, design_mat)
+
+# ugly fix
 gp <- levels(dlist$samples$group)
-glen <- length(gp)
+glen <- length(gp) 
 print(gp)
+
+# fix CN (or NC??) as control (even though it isnt the control)
 for (i in 2:glen) {
   test <- gp[i]
   con <- rep(0, glen)
