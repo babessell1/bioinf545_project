@@ -14,19 +14,17 @@ module load Bioinformatics
 module load star/2.7.6a-aekjdpr
 
 # convert gff to gtf (have to download gff_read first)
-if [ ! -f ../data/genomes/cow.gtf ]; then
-    ../software/gffread-0.12.7.Linux_x86_64/gffread \
-        -T ../data/genomes/cow.gff \
-        -o ../data/genomes/cow.gtf
-    grep 'gene_id' ../data/genomes/cow.gtf > ../data/genomes/cow_qortsfix.gtf
-fi
+../software/gffread-0.12.7.Linux_x86_64/gffread \
+    -T ../data/genomes/cow.gff \
+    -o ../data/genomes/cow.gtf
+grep 'gene_id' ../data/genomes/cow.gtf > ../data/genomes/cow_qortsfix.gtf
 
 # index genome
 STAR --runMode genomeGenerate \
     --runThreadN 4 \
     --genomeDir ../data/genomes/cow_star/ \
     --genomeFastaFiles ../data/genomes/cow.fna \
-    --sjdbGTFfile ../data/genomes/cow.gtf \
+    --sjdbGTFfile ../data/genomes/cow_qortsfix.gtf \
     --genomeSAindexNbases 13 \
-    genomeSAsparseD 3 \
-    --sjdbOverhang 100
+    --genomeSAsparseD 1 \
+    --sjdbOverhang 99

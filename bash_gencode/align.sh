@@ -20,15 +20,14 @@ mkdir -p "../data/star_${2}"
 # align species=2, srr=1 combination
 STAR \
     --runThreadN 4 \
-    --readFilesCommand "gunzip" \
-    -c \
-    --outFilterMultimapNmax 10 \
+    --readFilesCommand "gunzip" -c \
+    --outFilterMultimapNmax 1 \
     --alignSJoverhangMin 5 \
     --alignSJDBoverhangMin 1 \
     --alignIntronMin 20 \
     --alignIntronMax 1000000 \
     --alignMatesGapMax 1000000 \
-    --sjdbGTFfile "../data/genomes/${2}.gtf" \
+    --sjdbGTFfile "../data/genomes/${2}_qortsfix.gtf" \
     --readFilesIn \
         "../data/trimmed_reads/${1}_pass_1_val_1.fq.gz" \
         "../data/trimmed_reads/${1}_pass_2_val_2.fq.gz" \

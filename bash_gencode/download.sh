@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=download_srr
+#SBATCH --job-name=download
 #SBATCH --cpus-per-task=1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -13,6 +13,7 @@
 module load Bioinformatics
 module load sratoolkit/2.10.9-udmejx7
 
+mkdir -p ../logs
 mkdir -p ../data/genomes
 mkdir -p ../data/untrimmed_reads
 
@@ -28,9 +29,6 @@ rm -r ./ncbi_dataset
 rm ./*.zip
 rm ./*.md
 
-gzip ./*.fna
-gzip ./*.gff
-
 # cow
 curl -OJX \
 GET "https://api.ncbi.nlm.nih.gov/datasets/v2alpha/genome/accession/GCF_000003055.6/download?include_annotation_type=GENOME_FASTA,GENOME_GFF,SEQUENCE_REPORT&filename=GCF_000003055.6.zip" -H "Accept: application/zip"
@@ -41,9 +39,6 @@ mv ./ncbi_dataset/data/GCF_000003055.6/*.gff ../data/genomes/cow.gff
 rm -r ./ncbi_dataset
 rm ./*.zip
 rm ./*.md
-
-gzip ./*.fna
-gzip ./*.gff
 
 # get each srr code associated fastq
 while read srr; do

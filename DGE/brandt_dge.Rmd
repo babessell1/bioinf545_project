@@ -14,8 +14,11 @@ library(DESeq2)
 ```
 
 ```{r}
-# hardcoded, have to changed this to your own
+# MODIFY THESE VARIABLES
 setwd("C:/Users/bbessell/OneDrive - Michigan Medicine/Documents/Courses/BIOINF545/project/DGE")
+rmdups <- F
+hyper_geno <- "CN"
+species <- "sheep"
 
 # vector of srr codes
 srr <- c("SRR1013842",
@@ -48,11 +51,19 @@ samp_id <- c("NN_1",
              "CC_3")
 
 # get all files, get subsets, ones with dupes removed, ones without
-all_files = list.files(path="./counts", full.names=T)
+if (species=="cow"){
+  all_files = list.files(path="./cow_counts", full.names=T)
+} else {
+  all_files = list.files(path="./sheep_counts", full.names=T)
+}
 cnt_files <- all_files[grep("^((?!_rmdup).)*$", all_files, perl=T)] # regex searches NOT contains '_rmdup'
 cnt_files_rmdup <- all_files[grep("rmdup", all_files)] # vice versa
 
-use_files <- cnt_files # change this variable to change dupe use ^
+if (rmdups==T) {
+  use_files <- cnt_files_rmdup
+} else {
+  use_files <- cnt_files # change this variable to change dupe use ^
+}
 
 # build count matrix
 # could use the file reader for DESeq2, but Kate did that and I figured I'd do this way. 
@@ -76,6 +87,8 @@ row.names(cnt_df) <- cnt_df$gene  # set rownames to genes
 cnt_df[,"gene"] <- NULL  # remove gene column
 count_matrix <- as.matrix(cnt_df)  # convert to matrix
 ```
+
+
 ```{r}
 # make "dictionary" of sample info
 # can set 'geno' to 'pheno' to compare against all non polar overdominant as one group
@@ -85,34 +98,92 @@ coldata <- data.frame(
   row.names= "sample"
 )
 ```
+
 ```{r}
 # build DESeq2 object
 dds <- DESeqDataSetFromMatrix(countData=count_matrix, colData=coldata, design = ~ condition)
-dds <- dds[rowSums(counts(dds))>=12]  # 12 = dim 6? bc pairwise
+dds <- dds[rowSums(counts(dds))>=6]  # 12 = dim 6? bc pairwise
+
 
 # set hypertrophy gt as the first level, run deseq
 # * note, CN vs NC is ambiguous
-dds$condition <- relevel(dds$condition, ref="CN") 
-dds <- DESeq(dds)
+dds$condition <- relevel(dds$condition, ref=hyper_geno)  # hyper_geno
+dds <- DESeq(dds, minReplicatesForReplace=Inf)
 ```
+
 ```{r}
 # alpha = fdr cutoff
-res <- results(dds)
+setwd("C:/Users/bbessell/OneDrive - Michigan Medicine/Documents/Courses/BIOINF545/project/DGE")
+res <- results(dds, cooksCutoff=FALSE, independentFiltering=FALSE)
 summary(results(dds, alpha=0.05))
+write.csv(res, file=paste0("./results/DESeq2_Res_", hyper_geno, ".csv"))
 ```
+
 ```{r}
 # pca, kate has better plotting stuff in her script
 rld <- rlog(dds, blind=FALSE)
 plotPCA(rld, intgroup=c("condition"))
 ```
+
+
+
 ```{r}
 # try edgeR
 library(limma)
 library(edgeR)
+library(ggplot2)
 ```
 ```{r}
+which.maxn <- function(x,n=1){
+  if (n==1)
+    which.max(x)
+  else
+    {
+      if (n>1){
+        ii <- order(x,decreasing=TRUE)[1:min(n,length(x))]
+        ii[!is.na(x[ii])]
+      }
+      else {
+       stop("n must be >=1")
+      }
+    }
+}
+```
+
+
+```{r}
+library(tidyverse)
 # filter count matrix to row counts >= number of dimensions
-count_matrix <- count_matrix[rowSums(count_matrix)>=12,]
+count_matrix <- count_matrix[rowSums(count_matrix)>=6,]
+#count_matrix <- as.matrix(as.data.frame(count_matrix) %>% filter_all(all_vars(.>0)))
+# remove outliers
+count_matrix_filt <- count_matrix[-which.maxn(rowSums(count_matrix),n=2000),]
+```
+
+```{r}
+mean_counts <- apply(count_matrix, 1, mean)        #The second argument '1' of 'apply' function indicates the function being applied to rows. Use '2' if applied to columns 
+variance_counts <- apply(count_matrix, 1, var)
+df <- data.frame(mean_counts, variance_counts)
+
+ggplot2::ggplot(df, aes(x=mean_counts, y=variance_counts)) +
+        geom_point(aes(x=mean_counts, y=variance_counts)) + 
+        geom_smooth(method=lm, se=FALSE) +
+        scale_y_log10(limits = c(1,1e9)) +
+        scale_x_log10(limits = c(1,1e9)) +
+        geom_abline(intercept = 0, slope = 1, color="red")
+```
+
+```{r}
+
+for (i in 1:ncol(count_matrix_filt) ) {
+  hist(count_matrix_filt[,i],
+       main=paste0("Counts ", colnames(count_matrix_filt)[i]),
+       breaks=50
+  )
+}
+```
+
+```{r}
 
 # construct edgeR object, group/condition is genotype
 dlist <- DGEList(counts=count_matrix, 
@@ -120,10 +191,12 @@ dlist <- DGEList(counts=count_matrix,
                  group=coldata$condition
                  )
 
-dlist$samples$group <- relevel(dlist$samples$group, ref="CN")
+dlist$samples$group <- relevel(dlist$samples$group, ref=hyper_geno)
 dlist <- calcNormFactors(dlist, method="TMM")  # normalize
 plotMDS(dlist)  # cluster
 ```
+
+
 ```{r}
 # test groups against eachother
 design_mat <- model.matrix(~0+group, data=dlist$samples)
@@ -134,30 +207,48 @@ dlist <- estimateGLMCommonDisp(dlist, design=design_mat)
 dlist <- estimateGLMTrendedDisp(dlist, design=design_mat)
 dlist <- estimateGLMTagwiseDisp(dlist, design=design_mat)
 ```
+
 ```{r}
+
+setwd("C:/Users/bbessell/OneDrive - Michigan Medicine/Documents/Courses/BIOINF545/project/DGE")
 # fit that neg binom
 fit <- glmQLFit(dlist, design_mat)
 
-# ugly fix
-gp <- levels(dlist$samples$group)
-glen <- length(gp) 
-print(gp)
+grp <- levels(dlist$samples$group)
+
+print(grp)
 
 # fix CN (or NC??) as control (even though it isnt the control)
-for (i in 2:glen) {
-  test <- gp[i]
-  con <- rep(0, glen)
-  con[1] <- -1
-  con[i] <- 1
-  print(con)
-  qlf <- glmQLFTest(fit, contrast=con)
+for (i in 2:length(grp) ) {
+  test <- grp[i]
+  contrast <- rep(0, length(grp) )
+  contrast[1] <- -1
+  contrast[i] <- 1
+  print(contrast)
+  qlf <- glmQLFTest(fit, contrast=contrast)
   edgeR_result <- topTags(qlf, n=65000)
   deGenes <- decideTestsDGE(qlf, adjust.method="BH", p.value=0.05)
   deGenes <- rownames(qlf)[as.logical(deGenes)]
   expTab <- edgeR_result$table
-  hist(expTab$PValue)
-  write.csv(expTab,file=paste0("./results/degenes_CNvs", test, ".csv"))
+  hist(expTab$PValue, main=paste0( hyper_geno, "vs", test))
+  if (rmdups==T) {
+    write.csv(expTab, file=paste0(
+      "./results/rmdups_degenes_", species, "_", hyper_geno, "vs", test, ".csv"))
+  } else {
+    write.csv(expTab, file=paste0(
+      "./results/degenes_", species, "_",  hyper_geno, "vs", test, ".csv"))
+  }
 }
+```
+
+```{r}
+library(biomaRt)
+```
+```{r}
+ensembl<-  useMart("ensembl", dataset="oaries_gene_ensembl")
+gene_set <- c("LOC105606646", "DLK1", "RTL1")
+conversion_table <- getBM(attributes=c("uniprot_gn_symbol", "ensembl_gene_id"), filters = "uniprot_gn_symbol", values = gene_set, mart= ensembl)
+
 ```
 
 
